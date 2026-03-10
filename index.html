@@ -376,6 +376,50 @@ ctx.restore();
 
 /* SPIN */
 
+function startSpin(){
+
+let rewards = getRewards();
+
+/* random theo tỉ lệ */
+
+let rand = Math.random()*100;
+
+let total=0;
+let prizeIndex=0;
+
+for(let i=0;i<rewards.length;i++){
+
+total+=rewards[i].rate;
+
+if(rand<=total){
+prizeIndex=i;
+break;
+}
+
+}
+
+/* tính góc */
+
+let arc=360/rewards.length;
+
+let targetAngle=prizeIndex*arc+arc/2;
+
+/* kim ở bên phải */
+
+let stopAngle=360-targetAngle;
+
+/* quay nhiều vòng */
+
+let spinAngle=stopAngle+360*5;
+
+/* trừ góc hiện tại */
+
+spinAngle-= (startAngle*180/Math.PI)%360;
+
+animateSpin(spinAngle,prizeIndex);
+
+}
+
 function spin(){
 
 if(currentUser!=="admin"){
@@ -395,30 +439,41 @@ updateSpin();
 
 }
 
-animateSpin();
+/* quay vòng */
+
+startSpin();
 
 }
 
 /* ANIMATION */
 
-function animateSpin(){
+function animateSpin(targetAngle,prizeIndex){
 
-let velocity=Math.random()*0.4+0.4;
-let friction=0.985;
+let duration=4000;
 
-function frame(){
+let start=null;
 
-startAngle+=velocity;
+let initial=startAngle;
 
-velocity*=friction;
+function frame(time){
+
+if(!start) start=time;
+
+let progress=(time-start)/duration;
+
+if(progress>1) progress=1;
+
+let ease=1-Math.pow(1-progress,3);
+
+startAngle=initial+(targetAngle*Math.PI/180)*ease;
 
 drawWheel();
 
-if(velocity>0.002){
+if(progress<1){
 requestAnimationFrame(frame);
 }
 else{
-finishSpin();
+finishSpin(prizeIndex);
 }
 
 }
@@ -429,25 +484,11 @@ requestAnimationFrame(frame);
 
 /* RESULT */
 
-function finishSpin(){
+function finishSpin(index){
 
 let rewards=getRewards();
 
-let rand=Math.random()*100;
-
-let total=0;
-let prize="";
-
-for(let r of rewards){
-
-total+=r.rate;
-
-if(rand<=total){
-prize=r.name;
-break;
-}
-
-}
+let prize=rewards[index].name;
 
 result.innerText="🎉 "+prize;
 
