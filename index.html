@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>🎡 Vòng Quay May Mắn</title>
+
+<style>
+body{
+font-family:Arial;
+background:linear-gradient(135deg,#667eea,#764ba2);
+text-align:center;
+color:white;
+margin:0;
+}
+
+.decor{
+position:fixed;
+font-size:40px;
+opacity:0.25;
+}
+
+.star1{top:10%;left:8%}
+.star2{top:15%;right:8%}
+.star3{bottom:15%;left:10%}
+.star4{bottom:10%;right:10%}
+
+#wheelContainer{
+position:relative;
+width:520px;
+margin:auto;
+}
+
+canvas{
+background:#1e272e;
+border-radius:50%;
+border:12px solid gold;
+box-shadow:0 0 25px rgba(0,0,0,0.6);
+}
+
+#spinBtn{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+width:130px;
+height:130px;
+border-radius:50%;
+border:6px solid white;
+background:linear-gradient(#3498db,#2980b9);
+color:white;
+font-size:24px;
+cursor:pointer;
+}
+
+.pointer{
+position:absolute;
+right:25px;
+top:50%;
+transform:translateY(-50%);
+width:120px;
+height:6px;
+background:#ff4757;
+border-radius:4px;
+z-index:10;
+}
+
+table{
+margin:auto;
+margin-top:20px;
+background:white;
+color:black;
+border-collapse:collapse;
+width:70%;
+}
+
+th,td{
+border:1px solid #ccc;
+padding:8px;
+}
+
+#adminPanel{
+background:rgba(0,0,0,0.35);
+padding:15px;
+margin-top:30px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="decor star1">⭐</div>
+<div class="decor star2">✨</div>
+<div class="decor star3">🎉</div>
+<div class="decor star4">💎</div>
+
+<h1>🎡 Vòng Quay May Mắn</h1>
+
+<!-- LOGIN -->
+
+<div id="auth">
+
+<h3>Đăng nhập</h3>
+
+<input id="loginUser" placeholder="Tài khoản">
+<input id="loginPass" type="password" placeholder="Mật khẩu">
+
+<label>
+<input type="checkbox" id="remember"> Ghi nhớ
+</label>
+
+<br><br>
+<button onclick="login()">Đăng nhập</button>
+
+<h3>Đăng ký</h3>
+
+<input id="regUser" placeholder="Tài khoản">
+<input id="regPass" type="password" placeholder="Mật khẩu">
+
+<br><br>
+<button onclick="register()">Đăng ký</button>
+
+</div>
+
+<!-- GAME -->
+
+<div id="game" style="display:none">
+
+<h3 id="welcome"></h3>
+
+<h3>Lượt quay: <span id="spinCount"></span></h3>
+
+<button onclick="logout()">Đăng xuất</button>
+
+<div id="wheelContainer">
+
+<div class="pointer"></div>
+
+<canvas id="wheel" width="500" height="500"></canvas>
+
+<button id="spinBtn" onclick="spin()">QUAY</button>
+
+</div>
+
+<h2 id="result"></h2>
+
+<h2>📜 Lịch sử quay</h2>
+
+<table id="historyTable"></table>
+
+<div>
+
+<button onclick="prevPage()">◀</button>
+<span id="pageInfo"></span>
+<button onclick="nextPage()">▶</button>
+
+</div>
+
+</div>
+
+<!-- ADMIN -->
+
+<div id="adminPanel" style="display:none">
+
+<h2>👑 Admin Panel</h2>
+
+<pre>
+Naruto:40
+Sasuke:20
+Sakura
+Kakashi
+</pre>
+
+<textarea id="rewardInput" rows="6" cols="40"></textarea>
+
+<br><br>
+
+<button onclick="saveRewards()">Lưu phần thưởng</button>
+
+<hr>
+
+<h3>Chỉnh lượt quay</h3>
+
+<input id="editUser" placeholder="Tài khoản">
+<input id="editSpin" placeholder="Số lượt">
+
+<button onclick="setSpin()">Cập nhật</button>
+
+</div>
+
+<script>
+
+const canvas=document.getElementById("wheel");
+const ctx=canvas.getContext("2d");
+
+let startAngle=0;
+let currentUser="";
+
+let currentPage=1;
+const rowsPerPage=10;
+
+const colors=[
+"#f6c667","#5dade2","#ec7063",
+"#48c9b0","#d252e1","#f5b041",
+"#ff1493","#76b5c5","#9b59b6"
+];
+
+/* STORAGE */
+
+if(!localStorage.users) localStorage.users=JSON.stringify({});
+if(!localStorage.rewards) localStorage.rewards="A\nB\nC\nD";
+if(!localStorage.history) localStorage.history=JSON.stringify([]);
+
+/* REGISTER */
+
+function register(){
+
+let u=regUser.value.trim();
+let p=regPass.value.trim();
+
+let users=JSON.parse(localStorage.users);
+
+if(users[u]){
+alert("Tài khoản tồn tại");
+return;
+}
+
+users[u]={pass:p,spin:0};
+
+localStorage.users=JSON.stringify(users);
+
+alert("Đăng ký thành công");
+
+}
+
+/* LOGIN */
+
+function login(){
+
+let u=loginUser.value.trim();
+let p=loginPass.value.trim();
+
+if(u==="tuan1508" && p==="123az123"){
+currentUser="admin";
+adminPanel.style.display="block";
+}
+else{
+
+let users=JSON.parse(localStorage.users);
+
+if(!users[u]||users[u].pass!==p){
+alert("Sai tài khoản");
+return;
+}
+
+currentUser=u;
+
+}
+
+startGame();
+
+}
+
+/* START GAME */
+
+function startGame(){
+
+auth.style.display="none";
+game.style.display="block";
+
+welcome.innerText="Xin chào "+currentUser;
+
+updateSpin();
+
+drawWheel();
+
+loadHistory();
+
+}
+
+/* SPIN COUNT */
+
+function updateSpin(){
+
+if(currentUser==="admin"){
+spinCount.innerText="∞";
+return;
+}
+
+let users=JSON.parse(localStorage.users);
+
+spinCount.innerText=users[currentUser].spin;
+
+}
+
+/* GET REWARDS + AUTO RATE */
+
+function getRewards(){
+
+let lines=localStorage.rewards.split("\n");
+
+let rewards=[];
+let totalRate=0;
+let noRate=[];
+
+lines.forEach(l=>{
+
+let p=l.split(":");
+
+let name=p[0].trim();
+
+if(p[1]){
+let rate=parseFloat(p[1]);
+rewards.push({name,rate});
+totalRate+=rate;
+}
+else{
+rewards.push({name,rate:null});
+noRate.push(rewards.length-1);
+}
+
+});
+
+let remain=100-totalRate;
+
+let auto=remain/noRate.length;
+
+noRate.forEach(i=>{
+rewards[i].rate=auto;
+});
+
+return rewards;
+
+}
+
+/* DRAW WHEEL */
+
+function drawWheel(){
+
+let rewards=getRewards();
+
+let arc=Math.PI*2/rewards.length;
+
+ctx.clearRect(0,0,500,500);
+
+for(let i=0;i<rewards.length;i++){
+
+let angle=startAngle+i*arc;
+
+ctx.beginPath();
+
+ctx.fillStyle=colors[i%colors.length];
+
+ctx.moveTo(250,250);
+
+ctx.arc(250,250,240,angle,angle+arc);
+
+ctx.fill();
+
+ctx.save();
+
+ctx.translate(250,250);
+
+ctx.rotate(angle+arc/2);
+
+ctx.fillStyle="white";
+ctx.font="bold 16px Arial";
+ctx.textAlign="right";
+
+ctx.fillText(rewards[i].name,220,10);
+
+ctx.restore();
+
+}
+
+}
+
+/* SPIN */
+
+function spin(){
+
+if(currentUser!=="admin"){
+
+let users=JSON.parse(localStorage.users);
+
+if(users[currentUser].spin<=0){
+alert("Hết lượt");
+return;
+}
+
+users[currentUser].spin--;
+
+localStorage.users=JSON.stringify(users);
+
+updateSpin();
+
+}
+
+animateSpin();
+
+}
+
+/* ANIMATION */
+
+function animateSpin(){
+
+let velocity=Math.random()*0.4+0.4;
+let friction=0.985;
+
+function frame(){
+
+startAngle+=velocity;
+
+velocity*=friction;
+
+drawWheel();
+
+if(velocity>0.002){
+requestAnimationFrame(frame);
+}
+else{
+finishSpin();
+}
+
+}
+
+requestAnimationFrame(frame);
+
+}
+
+/* RESULT */
+
+function finishSpin(){
+
+let rewards=getRewards();
+
+let rand=Math.random()*100;
+
+let total=0;
+let prize="";
+
+for(let r of rewards){
+
+total+=r.rate;
+
+if(rand<=total){
+prize=r.name;
+break;
+}
+
+}
+
+result.innerText="🎉 "+prize;
+
+saveHistory(prize);
+
+}
+
+/* HISTORY */
+
+function saveHistory(prize){
+
+let history=JSON.parse(localStorage.history);
+
+history.unshift({
+
+user:currentUser,
+prize:prize,
+time:new Date().toLocaleString()
+
+});
+
+localStorage.history=JSON.stringify(history);
+
+loadHistory();
+
+}
+
+function loadHistory(){
+
+let history=JSON.parse(localStorage.history);
+
+let table=historyTable;
+
+table.innerHTML=`
+<tr>
+<th>Tài khoản</th>
+<th>Phần thưởng</th>
+<th>Thời gian</th>
+</tr>`;
+
+let start=(currentPage-1)*rowsPerPage;
+
+let data=history.slice(start,start+rowsPerPage);
+
+data.forEach(h=>{
+
+let r=table.insertRow();
+
+r.insertCell(0).innerText=h.user;
+r.insertCell(1).innerText=h.prize;
+r.insertCell(2).innerText=h.time;
+
+});
+
+pageInfo.innerText="Trang "+currentPage;
+
+}
+
+/* PAGE */
+
+function nextPage(){
+currentPage++;
+loadHistory();
+}
+
+function prevPage(){
+if(currentPage>1) currentPage--;
+loadHistory();
+}
+
+/* ADMIN */
+
+function saveRewards(){
+
+localStorage.rewards=rewardInput.value;
+
+drawWheel();
+
+alert("Đã lưu");
+
+}
+
+function setSpin(){
+
+let u=editUser.value;
+
+let s=Number(editSpin.value);
+
+let users=JSON.parse(localStorage.users);
+
+if(users[u]){
+
+users[u].spin=s;
+
+localStorage.users=JSON.stringify(users);
+
+alert("Đã cập nhật");
+
+}
+
+}
+
+/* LOGOUT */
+
+function logout(){
+
+currentUser="";
+
+game.style.display="none";
+adminPanel.style.display="none";
+
+auth.style.display="block";
+
+}
+
+drawWheel();
+
+</script>
+
+</body>
+</html>
